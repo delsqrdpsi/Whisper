@@ -3,10 +3,12 @@ require('dotenv').config();
 const express = require("express");
 const bodyParser = require("body-parser");
 const ejs = require("ejs");
+// const md5 = require('md5');
+const bcrypt = require('bcrypt');
 
 const mongoose = require('mongoose');
-var encrypt = require('mongoose-encryption');
-
+// var encrypt = require('mongoose-encryption');
+const saltRounds = 10;
 
 
 
@@ -23,7 +25,7 @@ const userSchema = new mongoose.Schema({
     password: String
 });
 
-userSchema.plugin(encrypt, { secret: process.env.SECRET, encryptedFields: ['password']});
+// userSchema.plugin(encrypt, { secret: process.env.SECRET, encryptedFields: ['password']});
 
 
 const User = mongoose.model('User', userSchema);
@@ -39,6 +41,7 @@ app.route("/login")
     res.render("login");
   })
 .post(function(req, res){
+  
     const username = req.body.username;
     const password  = req.body.password;
 
@@ -48,12 +51,22 @@ app.route("/login")
             res.render("login");
             console.log("User not found");
         }else{
-            if(foundUser.password === password){
-                res.render("secrets");
-            }else{
-                res.render("login");
-                console.log("Wrong password");            
-            }
+            bcrypt.compare(password, foundUser.password, function(err, result) {
+                // result == true
+                if(result){
+                    res.render("secrets");
+                }else{
+                    res.render("login");
+                    console.log("Wrong password");
+                }
+            });
+
+            // if(foundUser.password === password){
+            //     res.render("secrets");
+            // }else{
+            //     res.render("login");
+            //     console.log("Wrong password");            
+            // }
         }
     });
 
@@ -66,8 +79,10 @@ app.route("/register")
   })
 
 .post(function(req, res){
-    const username = req.body.username;
-    const password  = req.body.password;
+
+    bcrypt.hash(req.body.password, saltRounds, function(err, hash) {
+        const username = req.body.username;
+        const password  = hash;
     User.create({username:username, password : password}).then(result=>{
         if(result){
             res.render("login");
@@ -75,6 +90,10 @@ app.route("/register")
             res.render("register");
         }
         });
+
+    });
+
+    
 });
 
 
